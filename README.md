@@ -32,7 +32,7 @@ import { ShutdownHelper } from 'smart-shutdown';
 
 const shutdown = new ShutdownHelper();
 
-shutdown.shutdown();
+shutdown.shutdown(); //this need to be define once at application level
 ```
 
 #### For CommonJS (CJS)
@@ -42,7 +42,7 @@ const { ShutdownHelper } = require('smart-shutdown');
 
 const shutdown = new ShutdownHelper();
 
-shutdown.shutdown();
+shutdown.shutdown(); //this need to be define once at application level
 ```
 
 ## API
@@ -78,6 +78,7 @@ const shutdown = new ShutdownHelper();
 // `app` can be an HTTP, HTTPS, Express, Koa, or Fastify server, etc.
 const server = app.listen(...);
 
+//this need to be define once at application level
 shutdown.shutdown({
     server: server,
     timeout: 20000, // Custom timeout in milliseconds

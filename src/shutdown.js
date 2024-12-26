@@ -20,7 +20,7 @@ function wait(time) {
  * Shutdown management class to handle application shutdown gracefully.
  */
 class Shutdown {
-    constructor(config, apiConfig) {
+    constructor(config = {}, apiConfig) {
         this.log = config.log || console.log; // Logger function (default: console.log)
         this.development = config.development || false; // Flag for development mode
         this.finally = config.finally || this.finalFunction; // Final cleanup function
@@ -37,37 +37,27 @@ class Shutdown {
                 finally: this.finally // Final function after shutdown
             });
         } else {
-            // Handle signals manually if no HTTP server is provided
-            process.on('SIGTERM', async () => {
-                await Promise.race([wait(this.timeout), this.shutdownFunction('SIGTERM')]);
+
+            const once = onceFactory();
+
+            once(process, ['SIGTERM', 'SIGINT'], async (signal) => {
+                await Promise.race([wait(this.timeout), this.shutdownFunction(signal)]);
                 this.finally();
                 await wait(2000);
                 process.exit();
             });
-            process.on('SIGINT', async () => {
-                await Promise.race([wait(this.timeout), this.shutdownFunction('SIGINT')]);
-                this.finally();
-                await wait(2000);
-                process.exit();
-            });
+
         }
 
         // Log initialization
-        if (this.development) {
-            console.log('Shutdown handler successfully initialized.');
-        }
-        this.log('info', 'Shutdown handler successfully initialized.', 'shutdown');
+        this.log('info', 'Shutdown handler successfully initialized.');
     }
 
     /**
      * Default final function executed after the shutdown process is complete.
      */
     finalFunction() {
-        const message = 'Server gracefully shut down.';
-        if (this.development) {
-            console.log(message);
-        }
-        this.log('info', message, 'shutdown');
+        this.log('info', 'Server gracefully shut down.');
     }
 
     /**
@@ -79,7 +69,7 @@ class Shutdown {
         await this.executeHandlerFunction();
         // Delay to allow for any pending operations
         await wait(2000);
-        this.log('info', 'All shutdown handlers executed successfully.', 'shutdown');
+        this.log('info', 'All shutdown handlers executed successfully.');
     }
 
     async executeHandlerFunction() {
@@ -87,10 +77,7 @@ class Shutdown {
             try {
                 await handler(); // Execute each handler                
             } catch (error) {
-                this.log('error', `Error executing shutdown handler: ${error.message}`, 'shutdown');
-                if (this.development) {
-                    console.error(error);
-                }
+                this.log('error', `Error executing shutdown handler: ${error.message}`);
             }
         }
         return true;
@@ -109,3 +96,17 @@ module.exports = {
     Shutdown,
     addShutdownHandler
 };
+
+
+function onceFactory() {
+    let called = false;
+    return (emitter, events, callback) => {
+        function call() {
+            if (!called) {
+                called = true;
+                return callback.apply(this, arguments);
+            }
+        }
+        events.forEach(e => emitter.on(e, call));
+    };
+}
