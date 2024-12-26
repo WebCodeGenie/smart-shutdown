@@ -1,0 +1,19 @@
+{
+  "name": "smart-shutdown",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.cjs",
+  "module": "index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./index.cjs",
+      "import": "./index.mjs"
+    }
+  },
+  "author": "WebCodeGenie",
+  "license": "MIT",
+  "dependencies": {
+    "http-graceful-shutdown": "^3.1.13"
+  }
+}
