@@ -1,6 +1,6 @@
 {
   "name": "smart-shutdown",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "main": "index.cjs",
   "module": "index.mjs",
