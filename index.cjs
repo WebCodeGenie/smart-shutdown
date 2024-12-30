@@ -2,7 +2,7 @@
 const { addShutdownHandler, Shutdown } = require('./src/shutdown');
 
 class ShutdownHelper {
-    constructor(config) {
+    constructor(config = {}) {
         this.apiConfig = config
         this.apiConfig.development = config.development || false
     }
