@@ -1,4 +1,5 @@
-const gracefulShutdown = require('http-graceful-shutdown'); // Import graceful shutdown library for handling process termination signals.
+const gracefulShutdown = require('http-graceful-shutdown'); // Import graceful shutdown library for managing process termination signals.
+const axios = require('axios'); // Import Axios for making HTTP requests.
 
 // Global array to hold shutdown handler functions.
 global.globalErrorHandlerFn = [];
@@ -8,41 +9,48 @@ global.globalErrorHandlerFn = [];
  */
 class Shutdown {
     /**
-     * Constructor to initialize shutdown management.
+     * Constructor to initialize the shutdown manager.
      * @param {object} config - Configuration for the shutdown manager.
-     * @param {object} [apiConfig] - Additional API configuration (not currently used).
+     * @param {object} [apiConfig] - API configuration for reporting shutdown events.
      */
     constructor(config = {}, apiConfig) {
-        // Assign configuration options with defaults.
+        this.apiConfig = apiConfig;
+        // Assign configuration options with default values.
         this.log = config.log || console.log; // Logger function (default: console.log).
-        this.development = config.development || false; // Flag for development mode.
+        this.development = config.development != undefined ? config.development : (apiConfig?.development || false); // Flag for development mode.
         this.finally = config.finally || this.defaultFinalFunction; // Final cleanup function.
-        this.timeout = config.timeout || 30000; // Default timeout for shutdown operations.
+        this.timeout = config.timeout || 30000; // Timeout duration for shutdown operations (default: 30 seconds).
 
         // Initialize graceful shutdown for an HTTP server, if provided.
         if (config.server) {
             gracefulShutdown(config.server, {
                 signals: 'SIGINT SIGTERM', // Signals to handle.
-                timeout: this.timeout, // Shutdown timeout.
-                development: this.development, // Development mode flag.
+                timeout: this.timeout, // Maximum time to wait during shutdown.
+                development: this.development, // Enable development mode if specified.
                 forceExit: config.forceExit !== undefined ? config.forceExit : true, // Force process exit.
                 onShutdown: this.shutdownFunction.bind(this), // Shutdown handler.
-                finally: this.finally.bind(this) // Final function after shutdown.
+                finally: this.finally.bind(this) // Final cleanup function.
             });
         } else {
-            // Handle signals manually if no HTTP server is provided.
-            const once = onceFactory(); // Ensure handlers run only once.
+            // Manually handle signals if no HTTP server is provided.
+            const once = onceFactory(); // Factory to ensure handlers run only once.
 
-            once(process, ['SIGTERM', 'SIGINT'], async signal => {
-                await Promise.race([wait(this.timeout), this.shutdownFunction(signal)]); // Execute shutdown logic with a timeout.
-                this.finally(); // Execute final cleanup.
-                await wait(2000); // Allow some delay before exiting.
+            once(process, ['SIGTERM', 'SIGINT'], async (signal) => {
+                if (this.development == false) {
+                    await Promise.race([wait(this.timeout), this.shutdownFunction(signal)]); // Execute shutdown logic with a timeout.
+                    this.finally(); // Perform final cleanup.
+                    await wait(1000); // Wait briefly before process exit.
+                }
                 process.exit(); // Exit the process.
             });
         }
 
-        // Log initialization success.
-        this.log('info', 'Shutdown handler successfully initialized.');
+        if (this.development == false) {
+            // Log successful initialization.
+            this.log('info', 'Shutdown handler successfully initialized.');
+        } else {
+            this.log('info', 'Shutdown handler in development mode.');
+        }
     }
 
     /**
@@ -53,14 +61,21 @@ class Shutdown {
     }
 
     /**
-     * Shutdown function to execute registered handlers and log shutdown completion.
-     * @param {string} signal - Signal that triggered the shutdown (e.g., SIGTERM, SIGINT).
+     * Shutdown function to execute registered handlers and optionally report the shutdown.
+     * @param {string} signal - The signal that triggered the shutdown (e.g., SIGTERM, SIGINT).
      * @returns {Promise<void>} Resolves after all handlers have executed.
      */
     async shutdownFunction(signal) {
+        if (this.apiConfig?.apiUrl && this.apiConfig?.development == false) {
+            this.reportError(signal).then(() => {
+                this.log('info', 'Shutdown reported.');
+            }).catch(err => {
+                this.log('error', `Failed to report shutdown: ${err.message}`);
+            });
+        }
         this.log('info', `Received signal: ${signal}. Executing shutdown handlers.`);
         await this.executeHandlerFunctions(); // Execute all registered handlers.
-        await wait(2000); // Delay to ensure pending operations complete.
+        await wait(1000); // Allow pending operations to complete.
         this.log('info', 'All shutdown handlers executed successfully.');
     }
 
@@ -69,23 +84,47 @@ class Shutdown {
      * @returns {Promise<boolean>} Resolves to true after handlers are executed.
      */
     async executeHandlerFunctions() {
-        for (const handler of globalErrorHandlerFn) {
+        for (const { handler, name } of globalErrorHandlerFn) {
+            const handlerName = name || "Anonymous";
             try {
-                await handler(); // Execute each handler.
+                await handler(); // Execute the shutdown handler.
+                this.log('info', `${handlerName} shutdown handler executed successfully.`);
             } catch (error) {
-                this.log('error', `Error executing shutdown handler: ${error.message}`);
+                this.log('error', `Error executing ${handlerName} shutdown handler: ${error.message}`);
             }
         }
         return true;
+    }
+
+    /**
+     * Report the shutdown event to an external API, if configured.
+     * @param {string} signal - The signal that triggered the shutdown.
+     * @returns {Promise<void>} Resolves after the API request is completed.
+     */
+    async reportError(signal) {
+        const options = this.apiConfig.token
+            ? { headers: { Authorization: `Bearer ${this.apiConfig.token}` } }
+            : {};
+
+        return axios.post(
+            `${this.apiConfig.apiUrl}/shutdown`,
+            {
+                service: this.apiConfig.service,
+                signal,
+                time: new Date()
+            },
+            options
+        );
     }
 }
 
 /**
  * Register a new shutdown handler function.
- * @param {Function} handler - Callback function to execute during shutdown.
+ * @param {Function} handler - The callback function to execute during shutdown.
+ * @param {string} [name] - Optional name for the shutdown handler.
  */
-const addShutdownHandler = handler => {
-    globalErrorHandlerFn.push(handler);
+const addShutdownHandler = (handler, name) => {
+    globalErrorHandlerFn.push({ handler, name });
 };
 
 /**

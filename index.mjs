@@ -5,8 +5,9 @@ const require = createRequire(import.meta.url);
 const { addShutdownHandler, Shutdown } = require('./src/shutdown');
 
 export class ShutdownHelper {
-    constructor() {
-        this.apiConfig = {}
+    constructor(config) {
+        this.apiConfig = config
+        this.apiConfig.development = config.development || false
     }
 
     async shutdown(config) {

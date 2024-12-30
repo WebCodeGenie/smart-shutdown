@@ -1,6 +1,6 @@
 {
   "name": "smart-shutdown",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "",
   "main": "index.cjs",
   "module": "index.mjs",
@@ -14,6 +14,7 @@
   "author": "WebCodeGenie",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.7.9",
     "http-graceful-shutdown": "^3.1.13"
   }
 }

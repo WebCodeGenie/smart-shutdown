@@ -56,7 +56,7 @@ The `ShutdownHelper` class provides a mechanism to handle graceful shutdowns. It
 - `shutdown(options)`: Initiates the graceful shutdown process. Accepts an `options` object.
 - `shutdownHandlerFn(callback)`: A callback function executed before the application shuts down. This function should handle cleanup tasks and execute before the timeout expires.
 
-## Options
+## shutdown method Options
 
 | Option       | Default          | Description                                                                                                                |
 |--------------|------------------|----------------------------------------------------------------------------------------------------------------------------|
