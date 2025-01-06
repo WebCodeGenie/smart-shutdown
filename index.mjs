@@ -3,6 +3,7 @@ const require = createRequire(import.meta.url);
 
 // Import the CommonJS module
 const { addShutdownHandler, Shutdown } = require('./src/shutdown');
+const { healthCheck } = require('./src/health-check')
 
 export class ShutdownHelper {
     constructor(config = {}) {
@@ -13,6 +14,11 @@ export class ShutdownHelper {
     async shutdown(config) {
         return new Shutdown(config, this.apiConfig);
     }
+
+    async healthCheck(config) {
+        return healthCheck(config, this.apiConfig);
+    }
+
 }
 
 export const shutdownHandlerFn = addShutdownHandler
