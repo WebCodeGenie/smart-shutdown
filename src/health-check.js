@@ -44,19 +44,14 @@ const setTheRule = (interval) => {
     if (interval < 60) {
         // Every ${interval} seconds
         rule = `*/${interval} * * * * *`;
-    } else if (interval >= 60 && interval < 3600) {
+    } else if (interval >= 60 && interval <= 300) {
         // Every ${minutes} minutes
         const minutes = Math.floor(interval / 60);
-        const seconds = interval % 60 == 0 ? '*' : interval % 60;
+        const seconds = interval % 60 == 0 ? 0 : interval % 60;
         rule = `${seconds} */${minutes} * * * *`;
-    } else if (interval >= 3600 && interval < 86400) {
-        // Every ${hours} hours
-        const hours = Math.floor(interval / 3600);
-        const minutes = Math.floor((interval % 3600) / 60) == 0 ? '*' : Math.floor((interval % 3600) / 60);
-        const seconds = interval % 60 == 0 ? '*' : interval % 60;
-        rule = `${seconds} ${minutes} */${hours} * * *`;
+    } else {
+        rule = "0 */5 * * * *"
     }
-
     return rule;
 };
 /**
